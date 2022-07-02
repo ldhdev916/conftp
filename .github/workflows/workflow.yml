@@ -17,7 +17,7 @@ jobs:
           cd android
           echo "${{ secrets.KEY_JKS }}" | base64 -d > key.jks
           PASSWORD=${{ secrets.PASSWORD }}
-          echo -e "storePassword=$PASSWORD\nkeyPassword=$PASSWORD\nkeyAlias=$ALIAS\nstoreFile=../key.jks" > key.properties
+          echo -e "storePassword=$PASSWORD\nkeyPassword=$PASSWORD\nkeyAlias=${{ secrets.ALIAS }}\nstoreFile=../key.jks" > key.properties
       - name: Build APK
         run: flutter build apk --split-per-abi
       - name: Release APK
