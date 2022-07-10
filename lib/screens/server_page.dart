@@ -32,13 +32,16 @@ class ServerPage extends GetResponsiveView<ServerController> {
         if (controller.isOpen.value) {
           return FutureBuilder(
               future: NetworkInfo().getWifiIP().then((value) async {
+                final String ip;
                 if (value == null) {
                   final response =
                       await get(Uri.parse("https://api.ipify.org"));
-                  return response.body;
+                  ip = response.body;
                 } else {
-                  return value;
+                  ip = value;
                 }
+
+                return "$ip:${controller.port}";
               }),
               builder: (_, snapshot) {
                 if (snapshot.hasData) {
@@ -47,7 +50,7 @@ class ServerPage extends GetResponsiveView<ServerController> {
                       child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                        Text("현재 ip: $ip",
+                        Text("현재 ip/port : $ip",
                             style: const TextStyle(fontSize: 20)),
                         SizedBox(height: screen.height * 0.05),
                         QrImage(

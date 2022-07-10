@@ -35,12 +35,11 @@ class TransferScreen extends GetResponsiveView<TransferController> {
                           borderRadius: BorderRadius.circular(20)))),
                   onPressed: () async {
                     final result = await FilePicker.platform
-                        .pickFiles(allowMultiple: true, withData: true);
+                        .pickFiles(allowMultiple: true, withReadStream: true);
                     if (result == null) {
                       Get.snackbar("파일 전송", "파일을 선택 해 주세요");
                       return;
                     }
-
                     controller.sendFiles(result.files);
                   },
                   icon: const Icon(Icons.file_copy_outlined),

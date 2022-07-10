@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -19,70 +20,81 @@ class TransferController extends GetxController {
   void onInit() {
     super.onInit();
 
-    var expectLength = -1;
-    Uint8List? byteBuffer;
+    var identifier = -1;
+    var bytesLength = -1;
+    var bytesBuffer = <int>[];
 
-    socket.listen((event) async {
-      if (expectLength == -1) {
-        final inputStream = DataInputStream(Stream<List<int>>.value(event));
-        expectLength = await inputStream.readInt();
-        byteBuffer =
-            await inputStream.readBytes(await inputStream.bytesAvailable);
-      } else {
-        byteBuffer = Uint8List.fromList(byteBuffer! + event);
-      }
+    DataInputStream asData(Uint8List data) =>
+        DataInputStream(Stream<List<int>>.value(data));
 
-      if (byteBuffer!.length == expectLength) {
-        try {
-          final inputStream =
-              DataInputStream(Stream<List<int>>.value(byteBuffer!));
-          final identifier = await inputStream.readInt();
-          final value = await handlers[identifier]!.handleData(inputStream);
-          Get.snackbar("데이터 전송", value);
-        } finally {
-          expectLength = -1;
-          byteBuffer = null;
+    void handleEvent(Uint8List event) async {
+      Future<void> reHandle(void Function(int) setter) async {
+        final inputStream = asData(event);
+        setter(await inputStream.readInt());
+        final bytesAvailable = await inputStream.bytesAvailable;
+        if (bytesAvailable > 0) {
+          handleEvent(await inputStream.readBytes(bytesAvailable));
         }
       }
-    }, onDone: () => Get.back());
+
+      if (identifier == -1) {
+        await reHandle((p0) => identifier = p0);
+      } else if (bytesLength == -1) {
+        await reHandle((p0) => bytesLength = p0);
+      } else {
+        bytesBuffer += event;
+        if (bytesBuffer.length == bytesLength) {
+          final value = await handlers[identifier]!
+              .handleData(asData(Uint8List.fromList(bytesBuffer)));
+          Get.snackbar("데이터 전송", value);
+
+          identifier = -1;
+          bytesLength = -1;
+          bytesBuffer = [];
+        }
+      }
+    }
+
+    socket.listen(handleEvent, onDone: () => Get.back());
   }
 
-  void _sendData(Uint8List data) {
-    socket.add(data);
-  }
-
-  Uint8List _sink(int identifier, void Function(DataOutputSink sink) action) {
+  void _sink(int identifier,
+      FutureOr<void> Function(DataOutputSink sink) action) async {
     final output = ByteAccumulatorSink();
     final sink = DataOutputSink(output);
 
-    sink.writeInt(identifier);
-    action(sink);
+    await action(sink);
 
-    final total = ByteAccumulatorSink();
-    final totalSink = DataOutputSink(total);
-    totalSink.writeInt(output.bytes.length);
-    totalSink.writeBytes(output.bytes);
+    final socketSink = DataOutputSink(socket);
 
-    return total.bytes;
+    final bytes = output.bytes;
+
+    socketSink.writeInt(identifier);
+    socketSink.writeInt(bytes.length);
+    socketSink.writeBytes(bytes);
   }
 
   void sendText(String text) {
-    _sendData(_sink(0, (sink) {
+    _sink(0, (sink) {
       sink.writeUTF8(text);
-    }));
+    });
   }
 
   void sendFiles(Iterable<PlatformFile> files) {
-    _sendData(_sink(1, (sink) {
+    _sink(1, (sink) async {
       sink.writeInt(files.length);
 
       for (final file in files) {
         sink.writeUTF8(file.name);
-        final bytes = file.bytes!;
+
+        final bytes = <int>[];
+
+        await file.readStream!.listen(bytes.addAll).asFuture();
+
         sink.writeInt(bytes.length);
         sink.writeBytes(bytes);
       }
-    }));
+    });
   }
 
   @override

@@ -35,11 +35,11 @@ class MainButton extends GetResponsiveView {
   }
 }
 
-class ClientPage extends GetView<ClientController> {
-  const ClientPage({Key? key}) : super(key: key);
+class ClientPage extends GetResponsiveView<ClientController> {
+  ClientPage({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
+  Widget builder() {
     return Scaffold(
         appBar: AppBar(title: const Text("데이터 전송 클라이언트"), centerTitle: true),
         body: Center(
@@ -48,19 +48,31 @@ class ClientPage extends GetView<ClientController> {
               children: [
                 MainButton(
                     onPressed: () {
-                      final editController = TextEditingController();
+                      final ipController = TextEditingController();
+                      final portController = TextEditingController();
                       Get.defaultDialog(
                           title: "IP 입력",
-                          content: TextField(
-                              autofocus: true,
-                              controller: editController,
+                          content: Column(children: [
+                            TextField(
+                                autofocus: true,
+                                controller: ipController,
+                                decoration: const InputDecoration(
+                                    border: OutlineInputBorder(),
+                                    labelText: "IP")),
+                            SizedBox(height: screen.height * 0.01),
+                            TextField(
+                              controller: portController,
+                              keyboardType: TextInputType.number,
                               decoration: const InputDecoration(
                                   border: OutlineInputBorder(),
-                                  labelText: "IP")),
+                                  labelText: "포트"),
+                            )
+                          ]),
                           confirm: TextButton(
                               onPressed: () {
                                 Get.back();
-                                controller.connect(editController.text);
+                                controller.connect(ipController.text,
+                                    int.parse(portController.text));
                               },
                               child: const Text("확인")));
                     },
@@ -75,10 +87,11 @@ class ClientPage extends GetView<ClientController> {
                       }
 
                       final ip = await Get.toNamed("/qr");
-                      if(ip == null) {
+                      if (ip == null) {
                         Get.snackbar("연결 실패", "QR코드에서 아이피를 감지하지 못했습니다");
                       } else {
-                        controller.connect(ip);
+                        final split = (ip as String).split(":");
+                        controller.connect(split[0], int.parse(split[1]));
                       }
                     },
                     icon: const Icon(Icons.qr_code),

@@ -4,5 +4,5 @@ import 'package:get/get.dart';
 
 class BottomController extends GetxService {
   final index = 0.obs;
-  final pages = [ServerPage(), const ClientPage()];
+  final pages = [ServerPage(), ClientPage()];
 }
